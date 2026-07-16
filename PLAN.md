@@ -324,8 +324,27 @@ vault/
 A watcher parses the vault (frontmatter + wikilinks) into a graph table (`nodes`, `edges`) in
 SQLite → served to the UI. So: **Obsidian sees the same graph via its native/3D-graph plugins**
 ([obsidian-3d-graph](https://github.com/AlexW00/obsidian-3d-graph) and successors), and the Priya
-dashboard renders its own richer, live version. ("Graphify" as a product doesn't exist — this
-vault-derived graph + `react-force-graph-3d` is the concrete replacement for that idea.)
+dashboard renders its own richer, live version.
+
+### 10.3 Graphify — knowledge graph of the *target project*, feeding the vault
+
+[Graphify](https://github.com/safishamsi/graphify) (PyPI `graphifyy`, CLI `graphify`, MIT-licensed,
+free) is a real, separate tool: it turns a folder — code, docs, PDFs, images, video — into a
+queryable knowledge graph via tree-sitter static analysis (code, no LLM needed) plus optional LLM
+semantic extraction (non-code content). Priya uses it, not to render the dashboard graph (that's
+§10.2/§11's job), but to **build grounded context about the target project itself**:
+
+- Run `graphify extract <project>/docs` (and the codebase) to produce `graph.json`/`graph.html`/
+  `GRAPH_REPORT.md` — richer than plain file scanning for Fundraising/User Research/Engineering.
+- `graphify ... --obsidian --obsidian-dir <vault>/20-Projects/<name>/codebase/` writes the result
+  straight into Priya's vault as interconnected markdown — it becomes ordinary nodes in the same
+  wikilink graph §10.2 already indexes, no separate viewer needed.
+- `python -m graphify.serve graphify-out/graph.json` exposes it as an MCP server, so manager/worker
+  Claude Code sessions can query it directly (`graphify query "what connects X to Y"`) — broader
+  than AgentKavach's own `codebase-memory-mcp` (code-only), since Graphify also covers docs/PDFs.
+- **Cost:** code extraction needs no API key at all (pure tree-sitter, local). The optional
+  doc/PDF/image LLM step supports Ollama as a backend — free, local, no key — so this integration
+  never has to touch a paid API.
 
 ---
 
@@ -517,5 +536,6 @@ workflow discipline — HLD before LLD, small commits, plan in writing).
 - Hermes Agent — https://github.com/NousResearch/hermes-agent (skill self-improvement, task bus, channels)
 - obsidian-3d-graph — https://github.com/AlexW00/obsidian-3d-graph (vault graph in 3D inside Obsidian)
 - react-force-graph — https://github.com/vasturiano/react-force-graph (our 3D graph renderer)
+- Graphify — https://github.com/safishamsi/graphify (free, MIT; code+docs knowledge graph, Obsidian export, MCP server — §10.3)
 - Claude Code headless/stream-json docs — https://docs.claude.com/en/docs/claude-code (runner adapter)
 - Piper TTS — https://github.com/rhasspy/piper · whisper.cpp — https://github.com/ggml-org/whisper.cpp
