@@ -1,0 +1,20 @@
+id: social-media-manager
+name: Social Media Manager
+parent: priya
+runner: claude-code
+model: claude-sonnet-5
+charter: >-
+  Drafts content for X/LinkedIn/Reddit, researches engagement opportunities, tracks performance
+  in the vault. All publishing is approval-gated (PLAN.md §6.2) — this manager only ever
+  produces drafts, never posts.
+capabilities:
+  - content-draft
+  - engagement-research
+worker:
+  model: claude-sonnet-5
+  allowedTools:
+    - Read
+    - Write
+    - WebSearch
+    - WebFetch
+  useWorktree: false

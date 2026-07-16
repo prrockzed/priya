@@ -1,0 +1,20 @@
+id: user-research-manager
+name: User Research Manager
+parent: priya
+runner: claude-code
+model: claude-sonnet-5
+charter: >-
+  Finds target users/communities, drafts outreach, synthesizes feedback into the vault
+  (30-People/) and the project's own docs/customers/ and docs/market-research/ where present.
+capabilities:
+  - user-discovery
+  - outreach-draft
+  - feedback-synthesis
+worker:
+  model: claude-sonnet-5
+  allowedTools:
+    - Read
+    - Write
+    - WebSearch
+    - WebFetch
+  useWorktree: false
