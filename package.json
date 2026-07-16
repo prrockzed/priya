@@ -1,0 +1,20 @@
+{
+  "name": "priya",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "daemon",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:daemon": "npm run dev --workspace daemon",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "migrate": "npm run migrate --workspace daemon"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.19.12": true,
+    "esbuild@0.28.1": true
+  }
+}
