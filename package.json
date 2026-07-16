@@ -11,10 +11,14 @@
     "dev:frontend": "npm run dev --workspace frontend",
     "migrate": "npm run migrate --workspace daemon"
   },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
   "allowScripts": {
-    "better-sqlite3@11.10.0": true,
     "esbuild@0.18.20": true,
     "esbuild@0.19.12": true,
-    "esbuild@0.28.1": true
+    "esbuild@0.28.1": true,
+    "unrs-resolver@1.12.2": true,
+    "sharp@0.34.5": true
   }
 }

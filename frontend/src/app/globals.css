@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  /* Jantar Mantar palette: a deep night sky behind graduated brass/copper instrument lines. */
+  --color-void: #0a0d16;
+  --color-void-soft: #12151f;
+  --color-void-line: #232838;
+  --color-brass: #c99a4b;
+  --color-brass-bright: #e0b968;
+  --color-marigold: #e8a33d;
+  --color-peacock: #1b6e77;
+  --color-peacock-bright: #2f96a1;
+  --color-vermilion: #c6432b;
+  --color-parchment: #ede6d6;
+  --color-mist: #8b92a6;
+
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-parchment);
+  font-family: var(--font-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
