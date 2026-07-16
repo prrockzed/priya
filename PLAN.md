@@ -43,8 +43,13 @@ everything in a graph you can see and touch. Paperclip's tagline captures the al
 5. **Human-gated where it matters.** Anything outward-facing (posting to social media, emailing
    an investor, merging a PR, spending money) lands in **Needs Approval** — nothing external
    happens without a click. (Command Center's best design decision.)
-6. **Budgets with hard stops.** Per-agent and per-manager monthly/daily token+cost budgets.
-   Exhausted budget = agent pauses, doesn't silently burn money. (Paperclip's best decision.)
+6. **Budgets with hard stops — mechanism built, currently uncapped.** The Budget Engine
+   (§13 schema) tracks per-agent/per-manager token usage regardless of billing model. On a flat
+   subscription (Claude Max) there's no per-token $ cost to cap, so no hard stop is enforced for
+   now, per an explicit decision — usage is still tracked and visible on the dashboard, and a
+   real cap (tokens or $ once metered API usage is added, e.g. Phase 6 runners) can be turned on
+   later without changing the mechanism. (Paperclip's original lesson: exhausted budget = agent
+   pauses, doesn't silently run away — worth reinstating once there's a real cost to cap.)
 7. **Atomic task ownership.** One task, one owner, one execution lock. No double work.
 8. **Everything auditable.** Every delegation, tool call, token count, and decision is an event
    in the log. The dashboard is a view over that log, never a separate reality.
@@ -494,7 +499,8 @@ worktree → diff in review state, all events recorded with token counts.
 **Phase 2 — Org + project discovery**
 Manager registry from YAML, Project Adapter (scan `.claude/*`, `CLAUDE.md`, `.mcp.json`),
 goal ancestry in prompts, review flow (changes_requested loop), needs_input round-trip,
-approval gates + policy file, budgets with hard stops, heartbeat scheduler.
+approval gates + policy file, budget tracking (uncapped for now, §2.6), heartbeat scheduler,
+concurrency cap of 5 parallel workers.
 ✅ Done when: "add rate limiting docs and draft a launch tweet" fans out to Engineering +
 Social, tweet lands in Needs Approval, budgets tick.
 
@@ -528,21 +534,27 @@ workflow discipline — HLD before LLD, small commits, plan in writing).
 ## 17. Risks & open questions (to discuss)
 
 1. ~~**Naming**~~ — decided: **Priya**.
-2. **Claude Code as privileged runner**: only it can execute a project's `.claude/` toolkit
-   natively. Fine to accept that engineering tasks are Claude-first and other runners handle
-   text-heavy roles until their ecosystems mature?
-3. **Concurrency ceiling**: how many parallel workers on your machine? (Each Claude Code run is
-   a process; worktrees multiply disk usage.) Propose default cap: 3.
-4. **Vault location**: separate repo/dir (proposed: `~/MyProjects/priya-vault`) vs inside
-   the Priya repo. Separate keeps company memory out of tool code — recommended.
-5. **`needs_input` UX over voice**: should the CEO *speak* pending questions when you open the
+2. ~~**Claude Code as privileged runner**~~ — decided: **Claude Code only for now.** Codex/Gemini/
+   opencode/api-generic stay defined in the runner interface (§7) and `models.yaml` (§8) but
+   unconfigured — you'll add a key and flip a manager to one of them yourself in `.env`/
+   `models.yaml` if and when you want to.
+3. ~~**Concurrency ceiling**~~ — decided: **5** parallel workers.
+4. ~~**Vault location**~~ — decided: `~/MyProjects/priya-vault`, separate from the Priya repo.
+5. ~~**Budget cap**~~ — decided: **no hard-stop cap for now** (see §2.6) — you're on/planning
+   Claude Max (flat subscription), so there's no per-token $ cost to cap yet; usage is still
+   tracked and shown on the dashboard, and a real cap goes on once a metered runner is added.
+6. ~~**Autonomous git push/PR-open on AgentKavach**~~ — sign-off given: the Engineering manager
+   may branch/commit/push/open PRs on the real AgentKavach repo without asking each time; only
+   *merging* stays approval-gated, per §6.2's policy.
+7. **`needs_input` UX over voice**: should Priya *speak* pending questions when you open the
    dashboard, or stay text-inbox-only at first? (Propose: inbox first, voice digest Phase 5.)
-6. **Social/email execution**: v1 executes approved posts *how*? Options: you copy-paste from
+8. **Social/email execution**: v1 executes approved posts *how*? Options: you copy-paste from
    the approval card (zero-risk v1), browser automation via Playwright MCP, or per-platform
    APIs. Propose: copy-paste v1 → Playwright later.
-7. **Token metering honesty**: non-Claude runners give weak usage data; dashboard must mark
+9. **Token metering honesty**: non-Claude runners give weak usage data; dashboard must mark
    estimates clearly.
-8. **Model pricing table** must be filled at setup and maintained manually (prices change).
+10. **Model pricing table** must be filled at setup and maintained manually (prices change) —
+    moot for now since Claude Max has no per-token billing; matters once metered runners exist.
 
 ---
 
