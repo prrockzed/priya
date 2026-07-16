@@ -7,6 +7,10 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx src/db/seed.ts",
+    "cli": "tsx src/cli.ts",
+    "scan": "tsx src/project/scan-cli.ts",
+    "managers": "tsx src/managers/list-cli.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

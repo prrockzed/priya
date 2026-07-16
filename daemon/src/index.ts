@@ -15,7 +15,7 @@ app.get("/api/health", async () => {
     db.run(sql`select 1`);
     dbOk = true;
   } catch {
-    dbOk = false;
+    // dbOk stays false
   }
 
   return {
