@@ -84,7 +84,7 @@ everything in a graph you can see and touch. Paperclip's tagline captures the al
 │                                                                       │
 │  Project Adapter         Memory Engine        Event Bus + Audit Log   │
 │  discovers .claude/* of  Obsidian vault I/O,  every action = event    │
-│  the target project      graph index, recall                          │
+│  the target project      Graphify graph, recall                       │
 └───────┬──────────────────────┬───────────────────────┬────────────────┘
         │ spawn (pty/exec)     │ read/write markdown   │ SQLite
 ┌───────▼────────┐   ┌─────────▼─────────┐   ┌─────────▼─────────┐
@@ -319,29 +319,38 @@ vault/
 - **Consolidation routine (cron):** dedupe, link orphans, promote repeated lessons from
   `tasks/` into `50-Knowledge/` (Hermes' self-improving-skills idea applied to memory).
 
-### 10.2 Graph index
-
-A watcher parses the vault (frontmatter + wikilinks) into a graph table (`nodes`, `edges`) in
-SQLite → served to the UI. So: **Obsidian sees the same graph via its native/3D-graph plugins**
-([obsidian-3d-graph](https://github.com/AlexW00/obsidian-3d-graph) and successors), and the Priya
-dashboard renders its own richer, live version.
-
-### 10.3 Graphify — knowledge graph of the *target project*, feeding the vault
+### 10.2 Graphify — the graph engine behind the vault, the project, *and* the dashboard
 
 [Graphify](https://github.com/safishamsi/graphify) (PyPI `graphifyy`, CLI `graphify`, MIT-licensed,
-free) is a real, separate tool: it turns a folder — code, docs, PDFs, images, video — into a
-queryable knowledge graph via tree-sitter static analysis (code, no LLM needed) plus optional LLM
-semantic extraction (non-code content). Priya uses it, not to render the dashboard graph (that's
-§10.2/§11's job), but to **build grounded context about the target project itself**:
+free) is the single graph engine in the system — it doesn't just enrich the vault, it **is** the
+thing that produces the graph the central dashboard visualization renders:
 
-- Run `graphify extract <project>/docs` (and the codebase) to produce `graph.json`/`graph.html`/
-  `GRAPH_REPORT.md` — richer than plain file scanning for Fundraising/User Research/Engineering.
-- `graphify ... --obsidian --obsidian-dir <vault>/20-Projects/<name>/codebase/` writes the result
-  straight into Priya's vault as interconnected markdown — it becomes ordinary nodes in the same
-  wikilink graph §10.2 already indexes, no separate viewer needed.
-- `python -m graphify.serve graphify-out/graph.json` exposes it as an MCP server, so manager/worker
-  Claude Code sessions can query it directly (`graphify query "what connects X to Y"`) — broader
-  than AgentKavach's own `codebase-memory-mcp` (code-only), since Graphify also covers docs/PDFs.
+- **The org chart is Graphify nodes.** `10-Org/` in the vault holds one markdown note per agent —
+  `Priya.md`, `Engineering-Manager.md`, one per active worker/skill — each with frontmatter
+  (`type: agent`, `role`, `model`, `status`) and `[[wikilinks]]` to the managers/tasks they connect
+  to. Running `graphify extract <vault>` walks this and produces `graph.json` whose shape already
+  *is* "central node + branches + leaves" — Priya doesn't hand-roll a separate org-chart graph.
+- **Project knowledge is Graphify nodes too.** The same command run against the target project
+  (code via tree-sitter, no LLM needed, plus `docs/`) produces the project's knowledge graph;
+  `graphify ... --obsidian --obsidian-dir <vault>/20-Projects/<name>/codebase/` writes it straight
+  into the vault as more interconnected markdown, landing in the *same* graph as the org chart and
+  the memory notes — one unified graph, not three.
+- **Serving it live:** `python -m graphify.serve graphify-out/graph.json --transport http` exposes
+  the current graph over HTTP. Priya's daemon re-triggers `graphify extract` on vault writes (task
+  completed, manager delegates, memory consolidated) and reads the refreshed `graph.json` from
+  there — this *is* the data the frontend's `react-force-graph-3d` renderer draws (§11.1), not a
+  separately maintained SQLite copy. SQLite still caches it for fast FTS5 recall queries, but
+  Graphify's output is the source of truth, not the other way around.
+- **The one thing Graphify can't know:** sub-second runtime state — a worker mid-stream, an edge
+  actively animating during a delegation. Priya's event bus layers that live pulse on top of
+  Graphify's existing node IDs over WebSocket/SSE, so what you see is Graphify's graph *animated*
+  by Priya's events, not a duplicate hand-built one.
+- Manager/worker Claude Code sessions can also query the same graph directly via Graphify's MCP
+  server (`graphify query "what connects X to Y"`) — broader than AgentKavach's own
+  `codebase-memory-mcp` (code-only), since Graphify also covers docs/PDFs.
+- Obsidian itself still sees the same underlying vault graph via its own plugins
+  ([obsidian-3d-graph](https://github.com/AlexW00/obsidian-3d-graph) and successors) — same notes,
+  same wikilinks, so what you see in Priya and what you see in Obsidian are the same graph.
 - **Cost:** code extraction needs no API key at all (pure tree-sitter, local). The optional
   doc/PDF/image LLM step supports Ollama as a backend — free, local, no key — so this integration
   never has to touch a paid API.
@@ -350,18 +359,28 @@ semantic extraction (non-code content). Priya uses it, not to render the dashboa
 
 ## 11. Dashboard UI
 
-**Stack:** Next.js + Tailwind + shadcn/ui, `react-force-graph-3d` (Three.js) for the graph,
-SSE/WebSocket for live events, dark theme only (deep near-black `#0a0a0f` base, one accent —
-e.g. electric violet/cyan — glow/bloom on active nodes).
+**Stack:** Next.js + Tailwind + shadcn/ui, `react-force-graph-3d` (Three.js) rendering **Graphify's
+graph.json** (§10.2) as its data source, SSE/WebSocket for the live event overlay, dark theme only
+(deep near-black `#0a0a0f` base, one accent — e.g. electric violet/cyan — glow/bloom on active
+nodes).
 
-### 11.1 Center: the living org-and-memory graph
+### 11.1 Center: the living org-and-memory graph, powered by Graphify
 
-- **Central sphere = CEO** (pulsing subtly; pulse rate ∝ activity; ring shows today's token burn).
-- **Branches = managers**, sized by active task count, color by state mix (has `needs_approval`
-  → amber halo; `blocked` → red edge).
-- **Leaves = workers/subagents/skills** currently in play; memory nodes fade in around the
-  cluster they relate to (toggle: Org view / Memory view / Combined).
-- Live: when a manager delegates, an edge animates; when a worker streams tokens, its node shimmers.
+The graph the renderer draws *is* Graphify's output, not a separately hand-built structure — the
+org chart, the project's code/docs knowledge, and the vault's memory notes are all Graphify nodes
+in one `graph.json` (§10.2). Priya's frontend fetches that graph and layers live runtime state on
+top of it:
+
+- **Central sphere = Priya** — the `10-Org/Priya.md` node from Graphify's org extraction (pulsing
+  subtly; pulse rate ∝ activity; ring shows today's token burn).
+- **Branches = managers** — each a `10-Org/*.md` node, sized by active task count, color by state
+  mix (has `needs_approval` → amber halo; `blocked` → red edge).
+- **Leaves = workers/subagents/skills** currently in play (also Graphify org nodes); memory and
+  project-knowledge nodes fade in around the cluster they relate to (toggle: Org view / Memory
+  view / Combined — all three are just different slices of the same Graphify graph).
+- **Live overlay:** when a manager delegates, an edge animates; when a worker streams tokens, its
+  node shimmers — this part comes from Priya's event bus, not from Graphify (which has no concept
+  of live runtime state), animated on top of Graphify's existing node IDs.
 - **Click a manager →** side panel: kanban of *its* tasks (columns: In Progress / In Review /
   Needs Approval / Needs Input / Blocked / Done today), each card → full task drill-down
   (transcript, diffs, cost, timeline).
@@ -536,6 +555,6 @@ workflow discipline — HLD before LLD, small commits, plan in writing).
 - Hermes Agent — https://github.com/NousResearch/hermes-agent (skill self-improvement, task bus, channels)
 - obsidian-3d-graph — https://github.com/AlexW00/obsidian-3d-graph (vault graph in 3D inside Obsidian)
 - react-force-graph — https://github.com/vasturiano/react-force-graph (our 3D graph renderer)
-- Graphify — https://github.com/safishamsi/graphify (free, MIT; code+docs knowledge graph, Obsidian export, MCP server — §10.3)
+- Graphify — https://github.com/safishamsi/graphify (free, MIT; the graph engine behind the vault, project knowledge, and the central dashboard visualization — §10.2)
 - Claude Code headless/stream-json docs — https://docs.claude.com/en/docs/claude-code (runner adapter)
 - Piper TTS — https://github.com/rhasspy/piper · whisper.cpp — https://github.com/ggml-org/whisper.cpp
