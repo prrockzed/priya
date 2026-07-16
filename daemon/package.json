@@ -11,6 +11,7 @@
     "cli": "tsx src/cli.ts",
     "scan": "tsx src/project/scan-cli.ts",
     "managers": "tsx src/managers/list-cli.ts",
+    "policy": "tsx src/policy/policy-cli.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

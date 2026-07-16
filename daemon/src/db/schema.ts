@@ -66,6 +66,9 @@ export const runs = sqliteTable("runs", {
   agentId: text("agent_id").notNull(),
   runner: text("runner").notNull(),
   model: text("model").notNull(),
+  /** Claude Code's own session_id — lets a later run resume this one via --resume (used for
+   *  the changes_requested review loop instead of starting the worker over from scratch). */
+  sessionId: text("session_id"),
   transcriptPath: text("transcript_path"),
   tokensIn: integer("tokens_in").notNull().default(0),
   tokensOut: integer("tokens_out").notNull().default(0),

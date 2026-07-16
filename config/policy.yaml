@@ -1,0 +1,12 @@
+# Default approval policy (PLAN.md §6.2). Per-project overrides live at
+# <project>/.priya/policy.yaml and are layered on top of this default (not yet implemented —
+# only this repo-level default is read for now).
+always_approve:
+  - social.post
+  - email.send
+  - git.merge
+  - spend.any
+auto_allow:
+  - git.commit_on_branch
+  - web.search
+input_timeout_hours: 48

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { tasks, taskEvents, runs } from "../db/schema.js";
 import { eventBus } from "../events/bus.js";
@@ -81,6 +81,7 @@ export async function recordRun(input: {
   agentId: string;
   runner: string;
   model: string;
+  sessionId?: string | null;
   transcriptPath?: string;
   tokensIn: number;
   tokensOut: number;
@@ -94,4 +95,11 @@ export async function recordRun(input: {
   const id = randomUUID();
   await db.insert(runs).values({ id, ...input });
   return id;
+}
+
+export async function getLatestRun(taskId: string): Promise<typeof runs.$inferSelect | undefined> {
+  return db.query.runs.findFirst({
+    where: eq(runs.taskId, taskId),
+    orderBy: desc(runs.startedAt),
+  });
 }

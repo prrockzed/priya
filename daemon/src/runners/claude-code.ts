@@ -12,7 +12,9 @@ import type { RunSpec, RunEvent, RunResult } from "./types.js";
 export function runClaudeCode(spec: RunSpec): { events: EventEmitter; done: Promise<RunResult> } {
   const events = new EventEmitter();
 
-  const args = ["-p", spec.prompt, "--output-format", "stream-json", "--verbose", "--no-session-persistence"];
+  // Sessions must persist (no --no-session-persistence) so a later run can --resume this one
+  // for the changes_requested review loop.
+  const args = ["-p", spec.prompt, "--output-format", "stream-json", "--verbose"];
   args.push("--permission-mode", spec.permissionMode ?? "auto");
   if (spec.model) args.push("--model", spec.model);
   if (spec.systemPromptAppend) args.push("--append-system-prompt", spec.systemPromptAppend);
@@ -20,6 +22,7 @@ export function runClaudeCode(spec: RunSpec): { events: EventEmitter; done: Prom
   if (spec.mcpConfig) args.push("--mcp-config", spec.mcpConfig);
   if (spec.worktree) args.push("--worktree", spec.worktree);
   if (spec.sessionName) args.push("--name", spec.sessionName);
+  if (spec.resumeSessionId) args.push("--resume", spec.resumeSessionId);
 
   const child = spawn("claude", args, { cwd: spec.cwd, env: process.env });
   const rl = createInterface({ input: child.stdout });

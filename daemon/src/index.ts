@@ -4,6 +4,7 @@ import { env, dbPath } from "./config/env.js";
 import { db } from "./db/client.js";
 import { sql } from "drizzle-orm";
 import { eventBus } from "./events/bus.js";
+import { startHeartbeatLoop, processDueWakeups } from "./scheduler/heartbeat.js";
 
 const app = Fastify({ logger: true });
 
@@ -35,4 +36,6 @@ app.listen({ port: env.PRIYA_PORT, host: "127.0.0.1" }, (err, address) => {
   }
   eventBus.publish("daemon.started", { address });
   app.log.info(`Priya daemon listening on ${address}`);
+  processDueWakeups().catch((e) => app.log.error(e));
+  startHeartbeatLoop();
 });

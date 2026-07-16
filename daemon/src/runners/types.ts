@@ -10,6 +10,8 @@ export interface RunSpec {
   worktree?: string;
   permissionMode?: PermissionMode;
   sessionName?: string;
+  /** Continue a prior run's session (e.g. applying review feedback) instead of starting fresh. */
+  resumeSessionId?: string;
 }
 
 export interface RunResult {

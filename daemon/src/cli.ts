@@ -1,5 +1,5 @@
 import { createTask, getTask } from "./orchestrator/tasks.js";
-import { delegateToEngineering } from "./orchestrator/engineering.js";
+import { delegateToEngineering, requestChanges } from "./orchestrator/engineering.js";
 import { client } from "./db/client.js";
 
 function arg(name: string, fallback?: string): string | undefined {
@@ -12,6 +12,7 @@ async function main(): Promise<void> {
   const cwd = arg("cwd", process.cwd())!;
   const worktree = arg("worktree");
   const model = arg("model", "claude-haiku-4-5")!;
+  const feedback = arg("feedback");
 
   const taskId = await createTask({
     projectId: "agentkavach",
@@ -20,8 +21,14 @@ async function main(): Promise<void> {
   });
   console.log(`Created task ${taskId} (state=inbox)`);
 
-  const result = await delegateToEngineering(taskId, { cwd, model, worktree });
+  let result = await delegateToEngineering(taskId, { cwd, model, worktree });
   console.log("Run result:", JSON.stringify(result, null, 2));
+
+  if (feedback) {
+    console.log(`\n--- requesting changes: "${feedback}" ---\n`);
+    result = await requestChanges(taskId, feedback, { cwd, model, worktree });
+    console.log("Review run result:", JSON.stringify(result, null, 2));
+  }
 
   const finalTask = await getTask(taskId);
   console.log("Final task:", finalTask);
