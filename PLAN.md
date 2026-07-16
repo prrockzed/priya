@@ -332,20 +332,28 @@ thing that produces the graph the central dashboard visualization renders:
 
 - **The org chart is Graphify nodes.** `10-Org/` in the vault holds one markdown note per agent —
   `Priya.md`, `Engineering-Manager.md`, one per active worker/skill — each with frontmatter
-  (`type: agent`, `role`, `model`, `status`) and `[[wikilinks]]` to the managers/tasks they connect
-  to. Running `graphify extract <vault>` walks this and produces `graph.json` whose shape already
-  *is* "central node + branches + leaves" — Priya doesn't hand-roll a separate org-chart graph.
-- **Project knowledge is Graphify nodes too.** The same command run against the target project
-  (code via tree-sitter, no LLM needed, plus `docs/`) produces the project's knowledge graph;
-  `graphify ... --obsidian --obsidian-dir <vault>/20-Projects/<name>/codebase/` writes it straight
-  into the vault as more interconnected markdown, landing in the *same* graph as the org chart and
-  the memory notes — one unified graph, not three.
-- **Serving it live:** `python -m graphify.serve graphify-out/graph.json --transport http` exposes
-  the current graph over HTTP. Priya's daemon re-triggers `graphify extract` on vault writes (task
-  completed, manager delegates, memory consolidated) and reads the refreshed `graph.json` from
-  there — this *is* the data the frontend's `react-force-graph-3d` renderer draws (§11.1), not a
-  separately maintained SQLite copy. SQLite still caches it for fast FTS5 recall queries, but
-  Graphify's output is the source of truth, not the other way around.
+  (`type: agent`, `role`, `model`, `capabilities`) and a `[[wikilink]]` to its manager. Running
+  `graphify update <vault>` (no `extract` subcommand, and **no `--obsidian` flag** — corrected
+  after verifying against the real installed CLI, v0.9.17) walks the vault directly, since it's
+  already plain markdown, and writes `<vault>/graphify-out/graph.json`. Verified for real: it
+  parsed our `10-Org/` notes and produced an actual `references` edge (confidence `EXTRACTED`)
+  from the `[[Priya]]` wikilink in `Engineering-Manager.md` — the wikilink graph *is* the org
+  chart, no hand-rolled indexer needed.
+- **Project knowledge is a separate Graphify graph, merged in.** Running `graphify update
+  <project>` against the target project (tree-sitter, no LLM needed for code) produces its own
+  `<project>/graphify-out/graph.json` there. Verified for real against AgentKavach: 3053 nodes,
+  4656 edges, 248 communities from its 355 source files, in under 90 seconds, no API key. Since
+  Graphify has no vault-export flag, unifying the two graphs is Graphify's own job via
+  `graphify merge-graphs <vault-graph> <project-graph> --out <combined>` rather than one graph.json
+  written in three places — Priya's daemon reads the merged output.
+- **Serving it live:** `graphify-mcp <graph.json> --transport http --port <n>` exposes a graph
+  over HTTP (also invocable as `python -m graphify.serve`, same program). Priya's daemon
+  re-triggers `graphify update` on vault writes (task completed, manager delegates, memory
+  consolidated) and reads the refreshed merged `graph.json` from there — this *is* the data the
+  frontend's `react-force-graph-3d` renderer draws (§11.1), not a separately maintained SQLite
+  copy. SQLite still caches it for fast FTS5 recall queries, but Graphify's output is the source
+  of truth, not the other way around. (Phase 3 shipped a live DB-built graph as an interim stand-in
+  — §11.1's Combined view switches to the Graphify-merged graph once this wiring lands.)
 - **The one thing Graphify can't know:** sub-second runtime state — a worker mid-stream, an edge
   actively animating during a delegation. Priya's event bus layers that live pulse on top of
   Graphify's existing node IDs over WebSocket/SSE, so what you see is Graphify's graph *animated*

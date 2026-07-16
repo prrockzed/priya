@@ -12,6 +12,8 @@
     "scan": "tsx src/project/scan-cli.ts",
     "managers": "tsx src/managers/list-cli.ts",
     "policy": "tsx src/policy/policy-cli.ts",
+    "generate-org-notes": "tsx src/memory/generate-cli.ts",
+    "graphify-update": "tsx src/memory/graphify-cli.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
