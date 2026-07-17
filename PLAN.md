@@ -346,6 +346,13 @@ thing that produces the graph the central dashboard visualization renders:
   Graphify has no vault-export flag, unifying the two graphs is Graphify's own job via
   `graphify merge-graphs <vault-graph> <project-graph> --out <combined>` rather than one graph.json
   written in three places — Priya's daemon reads the merged output.
+- **Full coverage needs one extra install for SQL.** Verified by diffing every real source file
+  on disk against which ones actually produced a graph node: AgentKavach's 52
+  `gateway/db/migrations/*.sql` files were silently absent (Graphify's own extraction warning:
+  `tree_sitter_sql not installed`) until reinstalling with the SQL extra —
+  `pipx install --force "graphifyy[sql]"` — after which a `graphify update --force` picked up
+  all 52 files (3053 → 3183 nodes, 248 → 300 communities). Do this once per machine; plain code
+  extraction (Go/Python/TS/JS/Bash) needs no extra install, only SQL does.
 - **Serving it live, and a correction on how "combined" actually works:** the plan originally
   assumed Graphify's clustering would give each org agent its own community, letting one merged
   graph stand in for both the org chart and the knowledge graph. Verified false: Graphify's
