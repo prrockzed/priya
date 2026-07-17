@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
+import fs from "node:fs";
 import { desc } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { agents, tasks, metricsRollup } from "../db/schema.js";
+import { tasks, metricsRollup } from "../db/schema.js";
+import { buildCommunityGraph, MERGED_GRAPH_PATH } from "../memory/graphify.js";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -29,6 +31,33 @@ async function buildGraph() {
   ];
 
   return { nodes, links };
+}
+
+/**
+ * The Graphify-powered knowledge graph (PLAN.md §10.2/§10.3) — AgentKavach's actual code/docs
+ * structure, collapsed to Graphify's own community clusters so it renders as a few hundred
+ * meaningful nodes instead of thousands of individual files/functions. The org chart is
+ * deliberately NOT derived from this — Graphify's clustering can merge an org note into a
+ * different agent's community (verified: it pulled Priya.md into Fundraising Manager's
+ * community because they're wikilinked), so any community touching a 10-Org/*.md note is
+ * excluded here; the org chart lives in /api/graph, built straight from the agents table.
+ * Requires `npm run graphify-update --workspace daemon` to have been run at least once; returns
+ * an empty graph with a clear reason otherwise rather than a 500 (generating it takes ~90s, too
+ * slow for a request handler, so it's a deliberate offline step, not done on every page load).
+ */
+async function buildKnowledgeGraph() {
+  if (!fs.existsSync(MERGED_GRAPH_PATH)) {
+    return { nodes: [], links: [], generated: false, reason: "Run `npm run graphify-update --workspace daemon` first." };
+  }
+
+  const { nodes: communities, links } = buildCommunityGraph(MERGED_GRAPH_PATH);
+  const codeCommunities = communities.filter((c) => !c.containsOrgNotes);
+  const codeIds = new Set(codeCommunities.map((c) => c.id));
+
+  const nodes = codeCommunities.map((c) => ({ id: c.id, name: c.name, kind: "community", group: c.fileType, memberCount: c.memberCount }));
+  const filteredLinks = links.filter((l) => codeIds.has(l.source) && codeIds.has(l.target));
+
+  return { nodes, links: filteredLinks, generated: true };
 }
 
 async function buildMetricsSummary() {
@@ -70,4 +99,6 @@ export function registerRoutes(app: FastifyInstance): void {
   app.get("/api/metrics/summary", async () => buildMetricsSummary());
 
   app.get("/api/graph", async () => buildGraph());
+
+  app.get("/api/graph/knowledge", async () => buildKnowledgeGraph());
 }

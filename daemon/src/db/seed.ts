@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db, client } from "./client.js";
 import { projects, agents } from "./schema.js";
 import { env } from "../config/env.js";
+import { loadManagers } from "../managers/registry.js";
 
 async function upsertProject(id: string, name: string, path: string): Promise<void> {
   const existing = await db.query.projects.findFirst({ where: eq(projects.id, id) });
@@ -11,8 +12,11 @@ async function upsertProject(id: string, name: string, path: string): Promise<vo
 
 async function upsertAgent(a: typeof agents.$inferInsert): Promise<void> {
   const existing = await db.query.agents.findFirst({ where: eq(agents.id, a.id) });
-  if (existing) return;
-  await db.insert(agents).values(a);
+  if (existing) {
+    await db.update(agents).set(a).where(eq(agents.id, a.id));
+  } else {
+    await db.insert(agents).values(a);
+  }
 }
 
 async function main(): Promise<void> {
@@ -28,18 +32,24 @@ async function main(): Promise<void> {
     model: "claude-fable-5",
   });
 
-  await upsertAgent({
-    id: "engineering-manager",
-    kind: "manager",
-    name: "Engineering Manager",
-    charter: "Features, bugs, refactors, tests, PRs for the active project.",
-    capabilities: ["feature", "bug", "refactor", "test", "pr"],
-    runner: "claude-code",
-    model: "claude-sonnet-5",
-    parentId: "priya",
-  });
+  // Load every manager defined in managers/*.yaml (§5.2) rather than hardcoding just
+  // Engineering — Security, Social Media, User Research, and Fundraising exist as YAML but
+  // were never actually loaded into the agents table until this fix.
+  const managers = loadManagers();
+  for (const m of managers) {
+    await upsertAgent({
+      id: m.id,
+      kind: "manager",
+      name: m.name,
+      charter: m.charter,
+      capabilities: m.capabilities,
+      runner: m.runner,
+      model: m.model,
+      parentId: m.parent,
+    });
+  }
 
-  console.log("Seed complete.");
+  console.log(`Seed complete: priya + ${managers.length} manager(s) (${managers.map((m) => m.id).join(", ")}).`);
   client.close();
 }
 

@@ -57,16 +57,23 @@ export interface GraphNode {
   group: string;
   model?: string;
   state?: string;
+  memberCount?: number;
 }
 
 export interface GraphLink {
   source: string;
   target: string;
+  weight?: number;
 }
 
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
+}
+
+export interface KnowledgeGraphData extends GraphData {
+  generated: boolean;
+  reason?: string;
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -89,4 +96,8 @@ export function fetchMetricsSummary(): Promise<MetricsSummary> {
 
 export function fetchGraph(): Promise<GraphData> {
   return getJson<GraphData>("/api/graph");
+}
+
+export function fetchKnowledgeGraph(): Promise<KnowledgeGraphData> {
+  return getJson<KnowledgeGraphData>("/api/graph/knowledge");
 }

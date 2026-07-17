@@ -346,14 +346,22 @@ thing that produces the graph the central dashboard visualization renders:
   Graphify has no vault-export flag, unifying the two graphs is Graphify's own job via
   `graphify merge-graphs <vault-graph> <project-graph> --out <combined>` rather than one graph.json
   written in three places — Priya's daemon reads the merged output.
-- **Serving it live:** `graphify-mcp <graph.json> --transport http --port <n>` exposes a graph
-  over HTTP (also invocable as `python -m graphify.serve`, same program). Priya's daemon
-  re-triggers `graphify update` on vault writes (task completed, manager delegates, memory
-  consolidated) and reads the refreshed merged `graph.json` from there — this *is* the data the
-  frontend's `react-force-graph-3d` renderer draws (§11.1), not a separately maintained SQLite
-  copy. SQLite still caches it for fast FTS5 recall queries, but Graphify's output is the source
-  of truth, not the other way around. (Phase 3 shipped a live DB-built graph as an interim stand-in
-  — §11.1's Combined view switches to the Graphify-merged graph once this wiring lands.)
+- **Serving it live, and a correction on how "combined" actually works:** the plan originally
+  assumed Graphify's clustering would give each org agent its own community, letting one merged
+  graph stand in for both the org chart and the knowledge graph. Verified false: Graphify's
+  community detection merged Priya's note into the Fundraising Manager's community (they're
+  wikilinked), silently losing Priya's identity under a naive "one community = one org agent"
+  mapping. **The org chart is therefore built straight from the `agents` table (`GET /api/graph`
+  — always correct by construction, not dependent on clustering), and the codebase knowledge
+  graph is a separate view (`GET /api/graph/knowledge`) built from Graphify's community
+  clusters, filtering out any community touching a `10-Org/*.md` note** so the two never
+  collide. §11.1's dashboard has an Org/Knowledge toggle rather than one auto-merged "Combined"
+  view. `graphify-mcp <graph.json> --transport http --port <n>` (also invocable as
+  `python -m graphify.serve`) remains available for querying either graph from a worker session,
+  independent of what the dashboard renders. Verified end-to-end: `/api/graph` returns all 6
+  agents (Priya + 5 managers, seeded from `managers/*.yaml` — an earlier gap where only
+  Engineering was ever loaded into the DB is now fixed too); `/api/graph/knowledge` returns 248
+  real AgentKavach code/concept/document communities with zero org-node leakage.
 - **The one thing Graphify can't know:** sub-second runtime state — a worker mid-stream, an edge
   actively animating during a delegation. Priya's event bus layers that live pulse on top of
   Graphify's existing node IDs over WebSocket/SSE, so what you see is Graphify's graph *animated*
@@ -379,18 +387,21 @@ nodes).
 
 ### 11.1 Center: the living org-and-memory graph, powered by Graphify
 
-The graph the renderer draws *is* Graphify's output, not a separately hand-built structure — the
-org chart, the project's code/docs knowledge, and the vault's memory notes are all Graphify nodes
-in one `graph.json` (§10.2). Priya's frontend fetches that graph and layers live runtime state on
-top of it:
+Correction from the earlier draft (§10.2): the org chart is *not* rendered from Graphify's output
+— it's built straight from the `agents` table (`GET /api/graph`), because Graphify's own
+clustering doesn't reliably keep each org agent as its own identifiable node (verified: it
+merged Priya's note into another manager's community). The codebase knowledge graph *is*
+Graphify's output (`GET /api/graph/knowledge`, community-clustered). Priya's frontend has an
+Org/Knowledge toggle rather than one auto-merged view, and layers live runtime state on top of
+whichever is showing:
 
-- **Central sphere = Priya** — the `10-Org/Priya.md` node from Graphify's org extraction (pulsing
-  subtly; pulse rate ∝ activity; ring shows today's token burn).
-- **Branches = managers** — each a `10-Org/*.md` node, sized by active task count, color by state
-  mix (has `needs_approval` → amber halo; `blocked` → red edge).
-- **Leaves = workers/subagents/skills** currently in play (also Graphify org nodes); memory and
-  project-knowledge nodes fade in around the cluster they relate to (toggle: Org view / Memory
-  view / Combined — all three are just different slices of the same Graphify graph).
+- **Central sphere = Priya** — the DB agent row with `kind: priya` (pulsing subtly; pulse rate
+  ∝ activity; ring shows today's token burn).
+- **Branches = managers** — each a DB agent row with `kind: manager`, sized by active task count,
+  color by state mix (has `needs_approval` → amber halo; `blocked` → red edge).
+- **Leaves = workers/subagents/skills** currently in play (also DB-derived); the Knowledge toggle
+  swaps the whole scene for Graphify's community-clustered codebase graph instead of blending the
+  two into one view.
 - **Live overlay:** when a manager delegates, an edge animates; when a worker streams tokens, its
   node shimmers — this part comes from Priya's event bus, not from Graphify (which has no concept
   of live runtime state), animated on top of Graphify's existing node IDs.

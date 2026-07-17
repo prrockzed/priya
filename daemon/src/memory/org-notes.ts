@@ -1,7 +1,7 @@
 import { db } from "../db/client.js";
 import { writeNote } from "./vault.js";
 
-function slugify(name: string): string {
+export function slugify(name: string): string {
   return name.replace(/[^a-zA-Z0-9-]+/g, "-");
 }
 

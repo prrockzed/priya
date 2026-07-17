@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { GraphData, GraphNode } from "@/lib/api";
 
@@ -10,6 +10,11 @@ const NODE_COLOR: Record<string, string> = {
   priya: "#c99a4b",
   manager: "#2f96a1",
   task: "#8b92a6",
+  // Knowledge-view community groups (Graphify's file_type, PLAN.md §10.2/§10.3)
+  code: "#1b6e77",
+  document: "#c99a4b",
+  concept: "#e8a33d",
+  rationale: "#8b92a6",
 };
 
 const TASK_STATE_COLOR: Record<string, string> = {
@@ -33,6 +38,7 @@ function colorFor(node: GraphNode): string {
 function sizeFor(node: GraphNode): number {
   if (node.group === "priya") return 14;
   if (node.group === "manager") return 9;
+  if (node.memberCount) return Math.min(3 + Math.sqrt(node.memberCount) * 1.6, 16);
   return 4;
 }
 
@@ -50,6 +56,12 @@ export function OrgGraph({ data, onNodeClick }: { data: GraphData; onNodeClick?:
     }),
     [data],
   );
+
+  useEffect(() => {
+    // Different views (org: ~12 nodes vs. knowledge: ~250) need their own camera fit — a fit
+    // computed for one dataset's scale is wrong for the other's.
+    hasFitted.current = false;
+  }, [data]);
 
   function handleEngineStop() {
     if (hasFitted.current) return;
